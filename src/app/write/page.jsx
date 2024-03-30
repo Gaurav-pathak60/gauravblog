@@ -3,8 +3,8 @@
 import Image from "next/image";
 import styles from "./writePage.module.css";
 import { useEffect, useState } from "react";
-import "react-quill/dist/quill.bubble.css";
-import { useRouter } from "next/router"; // Use useRouter from 'next/router' instead of 'next/navigation'
+import "react-quill/dist/quill.bubble.css"; // Import for React Quill styling
+import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
 import {
   getStorage,
@@ -12,13 +12,13 @@ import {
   uploadBytesResumable,
   getDownloadURL,
 } from "firebase/storage";
-import { app } from "@/utils/firebase";
+import { app } from "@/utils/firebase"; // Assuming `app` is initialized with Firebase config
 import ReactQuill from "react-quill";
 
 const WritePage = () => {
+  // Component state
   const { status } = useSession();
   const router = useRouter();
-
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState(null);
   const [media, setMedia] = useState("");
@@ -26,33 +26,26 @@ const WritePage = () => {
   const [title, setTitle] = useState("");
   const [catSlug, setCatSlug] = useState("");
 
+  // Upload file using useEffect with better error handling
   useEffect(() => {
     const storage = getStorage(app);
     const uploadFile = async () => {
-      if (!file) return; // Add a check to ensure file is selected before upload
-      const name = new Date().getTime() + file.name;
-      const storageRef = ref(storage, name);
+      if (!file) return; // Early return if no file is selected
 
       try {
+        const name = new Date().getTime() + file.name;
+        const storageRef = ref(storage, name);
         const uploadTask = uploadBytesResumable(storageRef, file);
 
         uploadTask.on(
           "state_changed",
           (snapshot) => {
-            const progress =
-              (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
             console.log("Upload is " + progress + "% done");
-            switch (snapshot.state) {
-              case "paused":
-                console.log("Upload is paused");
-                break;
-              case "running":
-                console.log("Upload is running");
-                break;
-            }
           },
           (error) => {
             console.error("Error uploading file:", error);
+            // Handle upload error (e.g., display notification to user)
           },
           () => {
             getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
@@ -62,12 +55,14 @@ const WritePage = () => {
         );
       } catch (error) {
         console.error("Error uploading file:", error);
+        // Handle general upload error (e.g., display notification to user)
       }
     };
 
-    uploadFile(); // Call uploadFile function directly instead of using file && upload()
-  }, [file]);
+    uploadFile();
+  }, [file]); // Dependency array ensures upload happens only when file changes
 
+  // Handle form submission
   const handleSubmit = async () => {
     try {
       const res = await fetch("/api/posts", {
