@@ -4,7 +4,7 @@ import Image from "next/image";
 import styles from "./writePage.module.css";
 import { useEffect, useState } from "react";
 import "react-quill/dist/quill.bubble.css";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/router"; // Use useRouter from 'next/router' instead of 'next/navigation'
 import { useSession } from "next-auth/react";
 import {
   getStorage,
@@ -13,8 +13,7 @@ import {
   getDownloadURL,
 } from "firebase/storage";
 import { app } from "@/utils/firebase";
-const ReactQuill = dynamic(() => import("react-quill"), { ssr: false });
-
+import ReactQuill from "react-quill";
 
 const WritePage = () => {
   const { status } = useSession();
@@ -29,47 +28,71 @@ const WritePage = () => {
 
   useEffect(() => {
     const storage = getStorage(app);
-    const upload = () => {
+    const uploadFile = async () => {
+      if (!file) return; // Add a check to ensure file is selected before upload
       const name = new Date().getTime() + file.name;
       const storageRef = ref(storage, name);
 
-      const uploadTask = uploadBytesResumable(storageRef, file);
+      try {
+        const uploadTask = uploadBytesResumable(storageRef, file);
 
-      uploadTask.on(
-        "state_changed",
-        (snapshot) => {
-          const progress =
-            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          console.log("Upload is " + progress + "% done");
-          switch (snapshot.state) {
-            case "paused":
-              console.log("Upload is paused");
-              break;
-            case "running":
-              console.log("Upload is running");
-              break;
+        uploadTask.on(
+          "state_changed",
+          (snapshot) => {
+            const progress =
+              (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            console.log("Upload is " + progress + "% done");
+            switch (snapshot.state) {
+              case "paused":
+                console.log("Upload is paused");
+                break;
+              case "running":
+                console.log("Upload is running");
+                break;
+            }
+          },
+          (error) => {
+            console.error("Error uploading file:", error);
+          },
+          () => {
+            getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+              setMedia(downloadURL);
+            });
           }
-        },
-        (error) => {},
-        () => {
-          getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-            setMedia(downloadURL);
-          });
-        }
-      );
+        );
+      } catch (error) {
+        console.error("Error uploading file:", error);
+      }
     };
 
-    file && upload();
+    uploadFile(); // Call uploadFile function directly instead of using file && upload()
   }, [file]);
 
-  if (status === "loading") {
-    return <div className={styles.loading}>Loading...</div>;
-  }
+  const handleSubmit = async () => {
+    try {
+      const res = await fetch("/api/posts", {
+        method: "POST",
+        body: JSON.stringify({
+          title,
+          desc: value,
+          img: media,
+          slug: slugify(title),
+          catSlug: catSlug || "style",
+        }),
+      });
 
-  if (status === "unauthenticated") {
-    router.push("/");
-  }
+      if (res.status === 200) {
+        const data = await res.json();
+        router.push(`/posts/${data.slug}`);
+      } else {
+        console.error("Failed to submit post:", res.statusText);
+      }
+    } catch (error) {
+      console.error("Error submitting post:", error);
+    }
+  };
 
+  // Function to generate slug from title
   const slugify = (str) =>
     str
       .toLowerCase()
@@ -78,23 +101,14 @@ const WritePage = () => {
       .replace(/[\s_-]+/g, "-")
       .replace(/^-+|-+$/g, "");
 
-  const handleSubmit = async () => {
-    const res = await fetch("/api/posts", {
-      method: "POST",
-      body: JSON.stringify({
-        title,
-        desc: value,
-        img: media,
-        slug: slugify(title),
-        catSlug: catSlug || "style", //If not selected, choose the general category
-      }),
-    });
+  if (status === "loading") {
+    return <div className={styles.loading}>Loading...</div>;
+  }
 
-    if (res.status === 200) {
-      const data = await res.json();
-      router.push(`/posts/${data.slug}`);
-    }
-  };
+  if (status === "unauthenticated") {
+    router.push("/"); // Redirect unauthenticated users to the login page
+    return null; // Add a return statement to avoid rendering the rest of the component
+  }
 
   return (
     <div className={styles.container}>
