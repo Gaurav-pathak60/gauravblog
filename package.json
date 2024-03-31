@@ -22,6 +22,7 @@
     "swr": "^2.2.5"
   },
   "devDependencies": {
+    "@types/react": "^18.2.73",
     "prisma": "^5.11.0"
   }
 }
