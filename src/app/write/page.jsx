@@ -8,7 +8,8 @@ import { useSession } from "next-auth/react";
 import { uploadFile } from "@/utils/storage";
 
 import ReactQuill from "react-quill";
-
+if (typeof window !== "undefined") {
+ 
 const WritePage = () => {
   const { status } = useSession();
   const router = useRouter();
@@ -132,5 +133,6 @@ const WritePage = () => {
     </div>
   );
 };
+}
 
 export default WritePage;
