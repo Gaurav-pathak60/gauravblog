@@ -24,7 +24,7 @@ const WritePage = () => {
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
   };
-
+  const MyComponent = () => {
   useEffect(() => {
     const uploadToFirebase = async () => {
       if (file) {
@@ -39,6 +39,7 @@ const WritePage = () => {
 
     uploadToFirebase();
   }, [file]);
+};
 
   if (status === "loading") {
     return <div className={styles.loading}>Loading...</div>;
