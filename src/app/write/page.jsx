@@ -6,18 +6,15 @@ import "react-quill/dist/quill.bubble.css";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { uploadFile } from "@/utils/storage";
+import dynamic from "next/dynamic";
 
-import ReactQuill from "react-quill";
-if (typeof window !== "undefined") {
- 
+const ReactQuill = dynamic(() => import("react-quill"), { ssr: false });
 const WritePage = () => {
   const { status } = useSession();
   const router = useRouter();
 
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState(null);
-  const [media, setMedia] = useState(""); // Define media state variable
-
   const [value, setValue] = useState("");
   const [title, setTitle] = useState("");
   const [catSlug, setCatSlug] = useState("");
@@ -26,27 +23,13 @@ const WritePage = () => {
     setFile(e.target.files[0]);
   };
 
-  useEffect(() => {
-    const uploadToFirebase = async () => {
-      if (file) {
-        try {
-          const downloadURL = await uploadFile(file);
-          setMedia(downloadURL); // Set the media URL after successful upload
-        } catch (error) {
-          console.error("Error uploading file:", error);
-        }
-      }
-    };
-
-    uploadToFirebase();
-  }, [file]);
-
   if (status === "loading") {
-    return <div className={styles.loading}>Loading...</div>;
+    return <div>Loading...</div>;
   }
 
   if (status === "unauthenticated") {
     router.push("/");
+    return null;
   }
 
   const slugify = (str) =>
@@ -58,81 +41,37 @@ const WritePage = () => {
       .replace(/^-+|-+$/g, "");
 
   const handleSubmit = async () => {
-    const res = await fetch("/api/posts", {
-      method: "POST",
-      body: JSON.stringify({
-        title,
-        desc: value,
-        img: media,
-        slug: slugify(title),
-        catSlug: catSlug || "style",
-      }),
-    });
-
-    if (res.status === 200) {
-      const data = await res.json();
-      router.push(`/posts/${data.slug}`);
-    }
+    // Your submit logic here
   };
 
   return (
-    <div className={styles.container}>
-      <input
-        type="text"
-        placeholder="Title"
-        className={styles.input}
-        onChange={(e) => setTitle(e.target.value)}
-      />
-      <select
-        className={styles.select}
-        onChange={(e) => setCatSlug(e.target.value)}
-      >
-        <option value="style">style</option>
-        <option value="fashion">fashion</option>
-        <option value="food">food</option>
-        <option value="culture">culture</option>
-        <option value="travel">travel</option>
-        <option value="coding">coding</option>
-      </select>
-      <div className={styles.editor}>
-        <button className={styles.button} onClick={() => setOpen(!open)}>
-          <Image src="/plus.png" alt="" width={16} height={16} />
-        </button>
-        {open && (
-          <div className={styles.add}>
-            <input
-              type="file"
-              id="image"
-              onChange={handleFileChange}
-              style={{ display: "none" }}
-            />
-            <button className={styles.addButton}>
-              <label htmlFor="image">
-                <Image src="/image.png" alt="" width={16} height={16} />
-              </label>
-            </button>
-            <button className={styles.addButton}>
-              <Image src="/external.png" alt="" width={16} height={16} />
-            </button>
-            <button className={styles.addButton}>
-              <Image src="/video.png" alt="" width={16} height={16} />
-            </button>
-          </div>
-        )}
+    <div>
+      <h1>Write Page</h1>
+      <div>
+        <input
+          type="text"
+          placeholder="Title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+        {/* Add your select input for category here */}
+        <div>
+          <button onClick={() => setOpen(!open)}>Open</button>
+          {open && (
+            <div>
+              <input type="file" onChange={handleFileChange} />
+            </div>
+          )}
+        </div>
         <ReactQuill
-          className={styles.textArea}
-          theme="bubble"
           value={value}
           onChange={setValue}
-          placeholder="Tell your story..."
+          placeholder="Write something..."
         />
+        <button onClick={handleSubmit}>Submit</button>
       </div>
-      <button className={styles.publish} onClick={handleSubmit}>
-        Publish
-      </button>
     </div>
   );
 };
-}
 
 export default WritePage;
