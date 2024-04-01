@@ -1,18 +1,12 @@
-"use client";
-
+"use client"
 import Image from "next/image";
 import styles from "./writePage.module.css";
 import { useEffect, useState } from "react";
 import "react-quill/dist/quill.bubble.css";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import {
-  getStorage,
-  ref,
-  uploadBytesResumable,
-  getDownloadURL,
-} from "firebase/storage";
-import { app } from "@/utils/firebase";
+import { uploadFile } from "@/utils/storage";
+
 import ReactQuill from "react-quill";
 
 const WritePage = () => {
@@ -21,44 +15,29 @@ const WritePage = () => {
 
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState(null);
-  const [media, setMedia] = useState("");
+  const [media, setMedia] = useState(""); // Define media state variable
+
   const [value, setValue] = useState("");
   const [title, setTitle] = useState("");
   const [catSlug, setCatSlug] = useState("");
 
+  const handleFileChange = (e) => {
+    setFile(e.target.files[0]);
+  };
+
   useEffect(() => {
-    const storage = getStorage(app);
-    const upload = () => {
-      const name = new Date().getTime() + file.name;
-      const storageRef = ref(storage, name);
-
-      const uploadTask = uploadBytesResumable(storageRef, file);
-
-      uploadTask.on(
-        "state_changed",
-        (snapshot) => {
-          const progress =
-            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          console.log("Upload is " + progress + "% done");
-          switch (snapshot.state) {
-            case "paused":
-              console.log("Upload is paused");
-              break;
-            case "running":
-              console.log("Upload is running");
-              break;
-          }
-        },
-        (error) => {},
-        () => {
-          getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-            setMedia(downloadURL);
-          });
+    const uploadToFirebase = async () => {
+      if (file) {
+        try {
+          const downloadURL = await uploadFile(file);
+          setMedia(downloadURL); // Set the media URL after successful upload
+        } catch (error) {
+          console.error("Error uploading file:", error);
         }
-      );
+      }
     };
 
-    file && upload();
+    uploadToFirebase();
   }, [file]);
 
   if (status === "loading") {
@@ -85,7 +64,7 @@ const WritePage = () => {
         desc: value,
         img: media,
         slug: slugify(title),
-        catSlug: catSlug || "style", //If not selected, choose the general category
+        catSlug: catSlug || "style",
       }),
     });
 
@@ -103,7 +82,10 @@ const WritePage = () => {
         className={styles.input}
         onChange={(e) => setTitle(e.target.value)}
       />
-      <select className={styles.select} onChange={(e) => setCatSlug(e.target.value)}>
+      <select
+        className={styles.select}
+        onChange={(e) => setCatSlug(e.target.value)}
+      >
         <option value="style">style</option>
         <option value="fashion">fashion</option>
         <option value="food">food</option>
@@ -120,7 +102,7 @@ const WritePage = () => {
             <input
               type="file"
               id="image"
-              onChange={(e) => setFile(e.target.files[0])}
+              onChange={handleFileChange}
               style={{ display: "none" }}
             />
             <button className={styles.addButton}>
